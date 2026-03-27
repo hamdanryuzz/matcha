@@ -1,0 +1,16 @@
+id: TS-CRYPTO-002
+name: Weak Hash Algorithm
+description: MD5 and SHA1 are weak hash algorithms and should not be used for security-sensitive operations.
+severity: high
+confidence: high
+cwe: CWE-327
+owasp:
+  - A02:2021-Cryptographic Failures
+languages:
+  - javascript
+  - typescript
+logic: any
+patterns:
+  - type: regex
+    value: "(createHash|digest)\\s*\\(\\s*['\\\"](md5|sha1)['\\\"]"
+    flags: i

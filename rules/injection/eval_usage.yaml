@@ -1,0 +1,17 @@
+id: TS-INJ-002
+name: Dynamic eval Usage
+description: Using eval on runtime-controlled content enables arbitrary code execution.
+severity: critical
+confidence: medium
+cwe: CWE-95
+owasp:
+  - A03:2021-Injection
+languages:
+  - javascript
+  - typescript
+logic: any
+patterns:
+  - type: ast_node_type
+    value: call_expression
+    text_regex: "\\beval\\s*\\("
+    flags: i

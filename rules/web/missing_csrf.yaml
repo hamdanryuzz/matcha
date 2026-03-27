@@ -1,0 +1,15 @@
+id: TS-WEB-002
+name: Missing CSRF Protection in NestJS Controller
+description: State-changing NestJS controller handlers should apply explicit CSRF defenses when the application relies on cookie or session based authentication.
+severity: medium
+confidence: medium
+cwe: CWE-352
+owasp:
+  - A01:2021-Broken Access Control
+languages:
+  - javascript
+  - typescript
+logic: any
+patterns:
+  - type: semantic
+    value: nestjs_csrf

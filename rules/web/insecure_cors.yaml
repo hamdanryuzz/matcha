@@ -1,0 +1,15 @@
+id: TS-WEB-003
+name: Insecure CORS Wildcard Origin
+description: Allowing origin '*' in server-side CORS configuration can expose sensitive endpoints to untrusted origins.
+severity: high
+confidence: high
+cwe: CWE-942
+owasp:
+  - A05:2021-Security Misconfiguration
+languages:
+  - javascript
+  - typescript
+logic: any
+patterns:
+  - type: semantic
+    value: nestjs_cors_wildcard

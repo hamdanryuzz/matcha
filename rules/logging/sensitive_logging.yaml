@@ -1,0 +1,16 @@
+id: TS-LOG-001
+name: Sensitive Data Logged to Console
+description: Logging passwords, tokens, or secrets can leak sensitive data into logs and monitoring systems.
+severity: medium
+confidence: high
+cwe: CWE-532
+owasp:
+  - A09:2021-Security Logging and Monitoring Failures
+languages:
+  - javascript
+  - typescript
+logic: any
+patterns:
+  - type: regex
+    value: "console\\.(log|info|debug)\\s*\\([^\\n]*(password|token|secret|apiKey|authorization)"
+    flags: i

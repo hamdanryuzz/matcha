@@ -1,0 +1,16 @@
+id: TS-WEB-005
+name: Unsafe File Upload Handling
+description: Trusting original filenames or request-controlled upload destinations can enable path traversal, overwrite attacks, and unsafe file handling in NestJS upload flows.
+severity: high
+confidence: medium
+cwe: CWE-434
+owasp:
+  - A05:2021-Security Misconfiguration
+  - A08:2021-Software and Data Integrity Failures
+languages:
+  - javascript
+  - typescript
+logic: any
+patterns:
+  - type: semantic
+    value: nestjs_unsafe_upload

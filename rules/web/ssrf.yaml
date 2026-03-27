@@ -1,0 +1,15 @@
+id: TS-WEB-004
+name: Potential SSRF via Dynamic Outbound Request
+description: Passing user-influenced URLs into server-side HTTP clients can enable server-side request forgery in NestJS handlers and services.
+severity: high
+confidence: medium
+cwe: CWE-918
+owasp:
+  - A10:2021-Server-Side Request Forgery
+languages:
+  - javascript
+  - typescript
+logic: any
+patterns:
+  - type: semantic
+    value: nestjs_ssrf

@@ -1,0 +1,16 @@
+id: TS-WEB-001
+name: React dangerouslySetInnerHTML
+description: Writing untrusted HTML through dangerouslySetInnerHTML can introduce cross-site scripting.
+severity: high
+confidence: high
+cwe: CWE-79
+owasp:
+  - A03:2021-Injection
+languages:
+  - javascript
+  - typescript
+logic: any
+patterns:
+  - type: ast_node_type
+    value: jsx_attribute
+    text_regex: "dangerouslySetInnerHTML"

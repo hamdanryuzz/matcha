@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "matcha-sast"
+version = "0.1.0"
+description = "Python-based SAST CLI for JavaScript, TypeScript, NestJS, and Next.js codebases."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "OpenAI Codex" }]
+dependencies = [
+  "click",
+  "tree-sitter>=0.21",
+  "tree-sitter-javascript",
+  "tree-sitter-typescript",
+  "PyYAML",
+  "rich",
+  "groq",
+  "pathspec",
+]
+
+[project.scripts]
+matcha = "matcha.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "matcha"}
+
+[tool.setuptools.packages.find]
+where = ["matcha"]

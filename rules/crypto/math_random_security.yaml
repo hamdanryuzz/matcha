@@ -1,0 +1,16 @@
+id: TS-CRYPTO-001
+name: Math.random Used for Security Material
+description: Math.random is not cryptographically secure and should not generate tokens, secrets, OTPs, or similar material.
+severity: high
+confidence: medium
+cwe: CWE-330
+owasp:
+  - A02:2021-Cryptographic Failures
+languages:
+  - javascript
+  - typescript
+logic: any
+patterns:
+  - type: regex
+    value: "(?:const|let|var)\\s+[A-Za-z_][A-Za-z0-9_]*(token|secret|otp|nonce|csrf|password|salt)[A-Za-z0-9_]*\\s*=\\s*Math\\.random\\s*\\("
+    flags: i
