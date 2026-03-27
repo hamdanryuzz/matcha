@@ -227,10 +227,10 @@ matcha/
 `-- pyproject.toml
 ```
 
-## Roadmap
+<!-- ## Roadmap
 
 - Better finding grouping and suppression support
 - More framework-aware detectors
 - Expanded CWE coverage for auth, path traversal, redirects, and access control
 - Release automation and CI
-- More rule packs and community contributions
+- More rule packs and community contributions -->
