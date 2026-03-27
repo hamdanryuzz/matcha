@@ -1,0 +1,15 @@
+id: TS-WEB-009
+name: ReDoS via Dangerous Regular Expression
+description: Nested quantifiers or user-controlled RegExp construction can enable catastrophic backtracking and regular expression denial of service.
+severity: medium
+confidence: medium
+cwe: CWE-1333
+owasp:
+  - A03:2021-Injection
+languages:
+  - javascript
+  - typescript
+logic: any
+patterns:
+  - type: semantic
+    value: regex_dos

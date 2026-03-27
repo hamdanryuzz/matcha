@@ -40,6 +40,36 @@ It is designed for real-world NestJS and Next.js codebases, while staying easy t
   - `json`
   - `sarif`
 - Config file support with `.matcha.yaml`
+
+## Current Coverage
+
+`matcha` does not aim to cover every CWE. It currently focuses on high-signal issues for JavaScript, TypeScript, NestJS, and Next.js codebases.
+
+Current mapped coverage includes:
+
+- `CWE-79` Cross-Site Scripting
+- `CWE-78` Command Injection
+- `CWE-89` SQL Injection
+- `CWE-95` Code Injection via `eval`
+- `CWE-200` Information Exposure
+- `CWE-327` Weak Cryptographic Algorithm
+- `CWE-330` Insufficiently Random Values
+- `CWE-352` Cross-Site Request Forgery
+- `CWE-693` Protection Mechanism Failure
+- `CWE-770` Allocation of Resources Without Limits or Throttling
+- `CWE-434` Unsafe File Upload Handling
+- `CWE-601` Open Redirect
+- `CWE-613` Insufficient Session Expiration
+- `CWE-614` Insecure Cookie Configuration
+- `CWE-532` Sensitive Information in Logs
+- `CWE-798` Hardcoded or Weak Fallback Secrets
+- `CWE-915` Mass Assignment
+- `CWE-918` Server-Side Request Forgery
+- `CWE-943` NoSQL Injection
+- `CWE-942` Permissive CORS Configuration
+- `CWE-1333` Inefficient Regular Expression Complexity
+
+Coverage will expand over time as new rules are added and validated.
 - Exit codes suitable for CI
 
 ## Install
@@ -183,23 +213,24 @@ Project layout:
 
 ```text
 matcha/
-├── matcha/
-│   ├── cli.py
-│   ├── detector.py
-│   ├── engine.py
-│   ├── formatter.py
-│   ├── llm.py
-│   ├── parser.py
-│   └── walker.py
-├── rules/
-├── tests/
-├── matcha-logo.svg
-└── pyproject.toml
+|-- matcha/
+|   |-- cli.py
+|   |-- detector.py
+|   |-- engine.py
+|   |-- formatter.py
+|   |-- llm.py
+|   |-- parser.py
+|   `-- walker.py
+|-- rules/
+|-- tests/
+|-- matcha-logo.svg
+`-- pyproject.toml
 ```
 
 ## Roadmap
 
 - Better finding grouping and suppression support
 - More framework-aware detectors
+- Expanded CWE coverage for auth, path traversal, redirects, and access control
 - Release automation and CI
 - More rule packs and community contributions

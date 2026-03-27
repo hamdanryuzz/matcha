@@ -112,6 +112,53 @@ DEV_CORS_HINT_RE = re.compile(
     |===\s*['"]development['"]
     """
 )
+REDIRECT_PARAM_HINT_RE = re.compile(
+    r"""(?ix)
+    @(?:Query|Body|Param)\s*\(\s*['"]?(?:url|uri|next|returnTo|return_to|redirect|redirectTo|redirect_to|callback|continue)['"]?
+    """
+)
+REDIRECT_VAR_HINT_RE = re.compile(
+    r"""(?ix)
+    \b(?:url|uri|next|returnTo|return_to|redirect|redirectUrl|redirectTo|callbackUrl|continueUrl)\b
+    """
+)
+REDIRECT_SINK_RE = re.compile(
+    r"""(?ix)
+    (?:
+        \b(?:res|response)\.redirect
+        |NextResponse\.redirect
+        |\bredirect
+    )\s*\(
+    """
+)
+BODY_PARAM_RE = re.compile(
+    r"""(?ix)
+    @Body\(\)\s*(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?P<type>[^,\)\n]+)
+    """
+)
+SWAGGER_SETUP_RE = re.compile(r"SwaggerModule\.setup\s*\(", re.I)
+JWT_REGISTER_RE = re.compile(r"JwtModule\.register(?:Async)?\s*\(", re.I)
+JWT_SIGN_RE = re.compile(r"\.(?:sign|signAsync)\s*\(", re.I)
+COOKIE_CALL_RE = re.compile(r"\.(?:cookie)\s*\(", re.I)
+NOSQL_SINK_RE = re.compile(
+    r"""(?ix)
+    \.(?:find|findOne|findById|updateOne|updateMany|deleteOne|deleteMany|aggregate|where|findOneAndUpdate)\s*\(
+    """
+)
+COMMAND_SINK_RE = re.compile(r"\b(?:exec|execSync|spawn|spawnSync|fork)\s*\(", re.I)
+SECURITY_HEADER_HINT_RE = re.compile(r"\bhelmet\b|X-Frame-Options|Content-Security-Policy", re.I)
+NEST_BOOTSTRAP_RE = re.compile(r"NestFactory\.create\s*\(|app\.listen\s*\(", re.I)
+RATE_LIMIT_HINT_RE = re.compile(r"ThrottlerModule|@Throttle\b|nestjs/throttler|express-rate-limit|rateLimit\s*\(", re.I)
+AUTH_ROUTE_HINT_RE = re.compile(
+    r"""(?ix)
+    @Controller\(\s*['"][^'"]*(?:auth|login|session|password|otp|token)[^'"]*['"]\s*\)
+    |@(Post|Get)\(\s*['"][^'"]*(?:login|signin|signup|register|forgot|reset|otp|verify|refresh)[^'"]*['"]\s*\)
+    |\b(?:login|signin|signup|register|forgotPassword|resetPassword|refreshToken|verifyOtp|sendOtp)\s*\(
+    """
+)
+REGEX_LITERAL_RE = re.compile(r"/(?P<body>(?:\\.|[^/]){4,120})/[gimsuy]*")
+DANGEROUS_REGEX_BODY_RE = re.compile(r"\((?:\\.|[^)]){0,50}[+*](?:\\.|[^)]){0,20}\)[+*{]")
+REGEXP_FROM_INPUT_RE = re.compile(r"\bnew\s+RegExp\s*\(\s*(?:req|request)\.(?:body|query|params)|\bnew\s+RegExp\s*\(\s*[A-Za-z_][A-Za-z0-9_]*\s*\)", re.I)
 WEAK_FALLBACK_SECRET_VALUES = {
     "secret",
     "default",
@@ -210,6 +257,8 @@ class ProjectContext:
     uses_csrf_protection: bool = False
     uses_prisma: bool = False
     uses_typeorm: bool = False
+    uses_security_headers: bool = False
+    uses_rate_limiting: bool = False
     env_name: str | None = None
 
 
@@ -484,6 +533,26 @@ class RuleEngine:
             return self._detect_nestjs_unsafe_upload(rule, file_path, source, language, project_context)
         if pattern.value == "nestjs_cors_wildcard":
             return self._detect_nestjs_cors(rule, file_path, source, language, project_context)
+        if pattern.value == "open_redirect":
+            return self._detect_open_redirect(rule, file_path, source, language)
+        if pattern.value == "mass_assignment":
+            return self._detect_mass_assignment(rule, file_path, source, language, project_context)
+        if pattern.value == "swagger_exposed":
+            return self._detect_swagger_exposed(rule, file_path, source, language, project_context)
+        if pattern.value == "jwt_expiry_missing":
+            return self._detect_jwt_expiry_missing(rule, file_path, source, language)
+        if pattern.value == "insecure_cookie":
+            return self._detect_insecure_cookie(rule, file_path, source, language)
+        if pattern.value == "nosql_injection":
+            return self._detect_nosql_injection(rule, file_path, source, language, project_context)
+        if pattern.value == "command_injection":
+            return self._detect_command_injection(rule, file_path, source, language)
+        if pattern.value == "security_headers":
+            return self._detect_security_headers(rule, file_path, source, language, project_context)
+        if pattern.value == "regex_dos":
+            return self._detect_regex_dos(rule, file_path, source, language)
+        if pattern.value == "rate_limiting":
+            return self._detect_rate_limiting(rule, file_path, source, language, project_context)
         return []
 
     def _detect_sql_injection(
@@ -715,6 +784,373 @@ class RuleEngine:
             )
         return findings
 
+    def _detect_open_redirect(
+        self,
+        rule: Rule,
+        file_path: Path,
+        source: str,
+        language: str,
+    ) -> list[Finding]:
+        if not (REDIRECT_PARAM_HINT_RE.search(source) or REDIRECT_VAR_HINT_RE.search(source)):
+            return []
+
+        findings: list[Finding] = []
+        lines = source.splitlines()
+        for index, line in enumerate(lines):
+            sink_match = REDIRECT_SINK_RE.search(line)
+            if sink_match is None:
+                continue
+            if re.search(r"redirect\s*\(\s*['\"]https?://", line, re.IGNORECASE):
+                continue
+            window = "\n".join(lines[max(index - 3, 0) : min(index + 4, len(lines))])
+            if not (REDIRECT_PARAM_HINT_RE.search(window) or REDIRECT_VAR_HINT_RE.search(line)):
+                continue
+            findings.append(
+                self._make_finding(
+                    rule=rule,
+                    file_path=file_path,
+                    language=language,
+                    line=index + 1,
+                    end_line=index + 1,
+                    column=sink_match.start() + 1,
+                    code=line.strip(),
+                    snippet=_build_snippet(source, index + 1, index + 1),
+                    metadata={"detector": "open_redirect"},
+                )
+            )
+        return findings
+
+    def _detect_mass_assignment(
+        self,
+        rule: Rule,
+        file_path: Path,
+        source: str,
+        language: str,
+        project_context: ProjectContext,
+    ) -> list[Finding]:
+        if not project_context.uses_nestjs and "req.body" not in source and "@Body()" not in source:
+            return []
+        unsafe_vars = _extract_unsafe_body_variables(source)
+        if not unsafe_vars:
+            return []
+
+        findings: list[Finding] = []
+        lines = source.splitlines()
+        for index, line in enumerate(lines):
+            if not re.search(r"(?:\.create|\.save|\.insert|\.update|findOneAndUpdate|Object\.assign)\s*\(", line):
+                continue
+            if not any(re.search(rf"\b{re.escape(var_name)}\b", line) for var_name in unsafe_vars):
+                continue
+            findings.append(
+                self._make_finding(
+                    rule=rule,
+                    file_path=file_path,
+                    language=language,
+                    line=index + 1,
+                    end_line=index + 1,
+                    column=max(line.find("."), 0) + 1,
+                    code=line.strip(),
+                    snippet=_build_snippet(source, index + 1, index + 1),
+                    metadata={"detector": "mass_assignment", "body_vars": sorted(unsafe_vars)},
+                )
+            )
+        return findings
+
+    def _detect_swagger_exposed(
+        self,
+        rule: Rule,
+        file_path: Path,
+        source: str,
+        language: str,
+        project_context: ProjectContext,
+    ) -> list[Finding]:
+        if not project_context.uses_nestjs:
+            return []
+        if not SWAGGER_SETUP_RE.search(source):
+            return []
+
+        findings: list[Finding] = []
+        for match in SWAGGER_SETUP_RE.finditer(source):
+            line, column = _offset_to_line_col(source, match.start())
+            snippet = _build_snippet(source, line, line)
+            dev_only = bool(DEV_CORS_HINT_RE.search(snippet) or DEV_CORS_HINT_RE.search(source))
+            if dev_only:
+                continue
+            findings.append(
+                self._make_finding(
+                    rule=rule,
+                    file_path=file_path,
+                    language=language,
+                    line=line,
+                    end_line=line,
+                    column=column,
+                    code=_line_at(source, line),
+                    snippet=snippet,
+                    metadata={
+                        "detector": "swagger_exposed",
+                        "environment": "production-or-unconditional",
+                    },
+                )
+            )
+        return findings
+
+    def _detect_jwt_expiry_missing(
+        self,
+        rule: Rule,
+        file_path: Path,
+        source: str,
+        language: str,
+    ) -> list[Finding]:
+        findings: list[Finding] = []
+        for pattern, detector in ((JWT_REGISTER_RE, "jwt_module"), (JWT_SIGN_RE, "jwt_sign")):
+            for match in pattern.finditer(source):
+                window = source[match.start() : min(match.start() + 420, len(source))]
+                if "expiresIn" in window:
+                    continue
+                line, column = _offset_to_line_col(source, match.start())
+                end_line, _ = _offset_to_line_col(source, min(match.start() + len(window) - 1, len(source) - 1))
+                findings.append(
+                    self._make_finding(
+                        rule=rule,
+                        file_path=file_path,
+                        language=language,
+                        line=line,
+                        end_line=end_line,
+                        column=column,
+                        code=_line_at(source, line),
+                        snippet=_build_snippet(source, line, end_line),
+                        metadata={"detector": detector},
+                    )
+                )
+        return findings
+
+    def _detect_insecure_cookie(
+        self,
+        rule: Rule,
+        file_path: Path,
+        source: str,
+        language: str,
+    ) -> list[Finding]:
+        findings: list[Finding] = []
+        for match in COOKIE_CALL_RE.finditer(source):
+            window = source[match.start() : min(match.start() + 320, len(source))]
+            reasons: list[str] = []
+            if re.search(r"secure\s*:\s*false", window, re.IGNORECASE):
+                reasons.append("secure_false")
+            if re.search(r"httpOnly\s*:\s*false", window, re.IGNORECASE):
+                reasons.append("httponly_false")
+            if re.search(r"sameSite\s*:\s*['\"]none['\"]", window, re.IGNORECASE) and not re.search(
+                r"secure\s*:\s*true",
+                window,
+                re.IGNORECASE,
+            ):
+                reasons.append("samesite_none_without_secure")
+            if not reasons:
+                continue
+            line, column = _offset_to_line_col(source, match.start())
+            end_line, _ = _offset_to_line_col(source, min(match.start() + len(window) - 1, len(source) - 1))
+            findings.append(
+                self._make_finding(
+                    rule=rule,
+                    file_path=file_path,
+                    language=language,
+                    line=line,
+                    end_line=end_line,
+                    column=column,
+                    code=_line_at(source, line),
+                    snippet=_build_snippet(source, line, end_line),
+                    metadata={"detector": "insecure_cookie", "reasons": reasons},
+                )
+            )
+        return findings
+
+    def _detect_nosql_injection(
+        self,
+        rule: Rule,
+        file_path: Path,
+        source: str,
+        language: str,
+        project_context: ProjectContext,
+    ) -> list[Finding]:
+        unsafe_vars = _extract_unsafe_body_variables(source) | _extract_unsafe_query_variables(source)
+        if not unsafe_vars and not re.search(r"(?:req|request)\.(?:body|query|params)", source):
+            return []
+
+        findings: list[Finding] = []
+        lines = source.splitlines()
+        for index, line in enumerate(lines):
+            if not NOSQL_SINK_RE.search(line):
+                continue
+            if re.search(r"(?:req|request)\.(?:body|query|params)", line) or any(
+                re.search(rf"\b{re.escape(var_name)}\b", line) for var_name in unsafe_vars
+            ):
+                findings.append(
+                    self._make_finding(
+                        rule=rule,
+                        file_path=file_path,
+                        language=language,
+                        line=index + 1,
+                        end_line=index + 1,
+                        column=NOSQL_SINK_RE.search(line).start() + 1,
+                        code=line.strip(),
+                        snippet=_build_snippet(source, index + 1, index + 1),
+                        metadata={"detector": "nosql_injection"},
+                    )
+                )
+        return findings
+
+    def _detect_command_injection(
+        self,
+        rule: Rule,
+        file_path: Path,
+        source: str,
+        language: str,
+    ) -> list[Finding]:
+        command_vars = _extract_unsafe_command_variables(source)
+        if not command_vars and not re.search(r"(?:req|request)\.(?:body|query|params)\.(?:cmd|command|script)", source, re.I):
+            return []
+
+        findings: list[Finding] = []
+        lines = source.splitlines()
+        for index, line in enumerate(lines):
+            sink_match = COMMAND_SINK_RE.search(line)
+            if sink_match is None:
+                continue
+            if re.search(r"(?:exec|execSync)\s*\(\s*['\"]", line):
+                continue
+            if re.search(r"(?:req|request)\.(?:body|query|params)\.(?:cmd|command|script)", line, re.I) or any(
+                re.search(rf"\b{re.escape(var_name)}\b", line) for var_name in command_vars
+            ):
+                findings.append(
+                    self._make_finding(
+                        rule=rule,
+                        file_path=file_path,
+                        language=language,
+                        line=index + 1,
+                        end_line=index + 1,
+                        column=sink_match.start() + 1,
+                        code=line.strip(),
+                        snippet=_build_snippet(source, index + 1, index + 1),
+                        metadata={"detector": "command_injection"},
+                    )
+                )
+        return findings
+
+    def _detect_security_headers(
+        self,
+        rule: Rule,
+        file_path: Path,
+        source: str,
+        language: str,
+        project_context: ProjectContext,
+    ) -> list[Finding]:
+        if not project_context.uses_nestjs:
+            return []
+        if project_context.uses_security_headers:
+            return []
+        if not NEST_BOOTSTRAP_RE.search(source):
+            return []
+
+        match = NEST_BOOTSTRAP_RE.search(source)
+        if match is None:
+            return []
+        line, column = _offset_to_line_col(source, match.start())
+        return [
+            self._make_finding(
+                rule=rule,
+                file_path=file_path,
+                language=language,
+                line=line,
+                end_line=line,
+                column=column,
+                code=_line_at(source, line),
+                snippet=_build_snippet(source, line, line),
+                metadata={"detector": "security_headers"},
+            )
+        ]
+
+    def _detect_regex_dos(
+        self,
+        rule: Rule,
+        file_path: Path,
+        source: str,
+        language: str,
+    ) -> list[Finding]:
+        findings: list[Finding] = []
+        for match in REGEX_LITERAL_RE.finditer(source):
+            body = match.group("body")
+            if not DANGEROUS_REGEX_BODY_RE.search(body):
+                continue
+            line, column = _offset_to_line_col(source, match.start())
+            findings.append(
+                self._make_finding(
+                    rule=rule,
+                    file_path=file_path,
+                    language=language,
+                    line=line,
+                    end_line=line,
+                    column=column,
+                    code=_line_at(source, line),
+                    snippet=_build_snippet(source, line, line),
+                    metadata={"detector": "regex_literal"},
+                )
+            )
+        for match in REGEXP_FROM_INPUT_RE.finditer(source):
+            line, column = _offset_to_line_col(source, match.start())
+            findings.append(
+                self._make_finding(
+                    rule=rule,
+                    file_path=file_path,
+                    language=language,
+                    line=line,
+                    end_line=line,
+                    column=column,
+                    code=_line_at(source, line),
+                    snippet=_build_snippet(source, line, line),
+                    metadata={"detector": "regexp_from_input"},
+                )
+            )
+        return findings
+
+    def _detect_rate_limiting(
+        self,
+        rule: Rule,
+        file_path: Path,
+        source: str,
+        language: str,
+        project_context: ProjectContext,
+    ) -> list[Finding]:
+        if not project_context.uses_nestjs:
+            return []
+        if project_context.uses_rate_limiting:
+            return []
+        if "@Controller" not in source:
+            return []
+        if not AUTH_ROUTE_HINT_RE.search(source):
+            return []
+        if RATE_LIMIT_HINT_RE.search(source):
+            return []
+        if not re.search(r"@(Post|Get|Put|Patch|Delete)\s*\(", source):
+            return []
+
+        match = AUTH_ROUTE_HINT_RE.search(source)
+        if match is None:
+            return []
+        line, column = _offset_to_line_col(source, match.start())
+        return [
+            self._make_finding(
+                rule=rule,
+                file_path=file_path,
+                language=language,
+                line=line,
+                end_line=line,
+                column=column,
+                code=_line_at(source, line),
+                snippet=_build_snippet(source, line, line),
+                metadata={"detector": "rate_limiting"},
+            )
+        ]
+
     def _find_dynamic_sql_assignments(self, source: str) -> list[SQLAssignment]:
         assignments: list[SQLAssignment] = []
         for match in SQL_ASSIGNMENT_RE.finditer(source):
@@ -824,6 +1260,14 @@ class RuleEngine:
                     combined_source,
                 )
             ),
+            uses_security_headers=bool(
+                re.search(
+                    r"\bhelmet\b|X-Frame-Options|Content-Security-Policy|Strict-Transport-Security|X-Content-Type-Options",
+                    combined_source,
+                    re.IGNORECASE,
+                )
+            ),
+            uses_rate_limiting=bool(RATE_LIMIT_HINT_RE.search(combined_source)),
             env_name=_infer_environment_name(combined_source),
         )
 
@@ -969,3 +1413,34 @@ def _infer_environment_name(source: str) -> str | None:
     if "development" in lowered or "localhost" in lowered:
         return "development"
     return None
+
+
+def _extract_unsafe_body_variables(source: str) -> set[str]:
+    variables = {"req.body", "request.body"}
+    for match in BODY_PARAM_RE.finditer(source):
+        declared_type = match.group("type").strip()
+        if re.search(r"\b(?:any|unknown|object)\b|Record<", declared_type):
+            variables.add(match.group("name"))
+    return variables
+
+
+def _extract_unsafe_query_variables(source: str) -> set[str]:
+    variables = {"req.query", "request.query", "req.params", "request.params"}
+    for pattern in (
+        re.compile(r"@Query\(\)\s*(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?:any|unknown|object|Record<[^>]+>)", re.I),
+        re.compile(r"@Param\(\)\s*(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?:any|unknown|object|Record<[^>]+>)", re.I),
+    ):
+        for match in pattern.finditer(source):
+            variables.add(match.group("name"))
+    return variables
+
+
+def _extract_unsafe_command_variables(source: str) -> set[str]:
+    variables = set()
+    pattern = re.compile(
+        r"@(?:Body|Query|Param)\s*\(\s*['\"]?(?:cmd|command|script|shell)['\"]?\s*\)\s*(?P<name>[A-Za-z_][A-Za-z0-9_]*)",
+        re.I,
+    )
+    for match in pattern.finditer(source):
+        variables.add(match.group("name"))
+    return variables

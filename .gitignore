@@ -41,3 +41,4 @@ findings.json
 
 # Temporary fixture leftovers
 tests/matcha-config-*/
+tmp/

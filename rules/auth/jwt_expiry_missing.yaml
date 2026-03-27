@@ -1,0 +1,15 @@
+id: TS-AUTH-004
+name: JWT Expiry Missing
+description: JWT issuance or module configuration without an explicit expiration increases the lifetime of stolen tokens.
+severity: medium
+confidence: high
+cwe: CWE-613
+owasp:
+  - A07:2021-Identification and Authentication Failures
+languages:
+  - javascript
+  - typescript
+logic: any
+patterns:
+  - type: semantic
+    value: jwt_expiry_missing

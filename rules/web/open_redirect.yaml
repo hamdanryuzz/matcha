@@ -1,0 +1,15 @@
+id: TS-WEB-006
+name: Open Redirect via User-Controlled Target
+description: Redirecting to user-controlled targets without validation can enable phishing and token leakage via open redirect flows.
+severity: high
+confidence: medium
+cwe: CWE-601
+owasp:
+  - A01:2021-Broken Access Control
+languages:
+  - javascript
+  - typescript
+logic: any
+patterns:
+  - type: semantic
+    value: open_redirect

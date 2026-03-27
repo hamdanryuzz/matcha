@@ -41,13 +41,23 @@ class MatchaScanTests(unittest.TestCase):
             "TS-AUTH-001",
             "TS-AUTH-002",
             "TS-AUTH-003",
+            "TS-AUTH-004",
             "TS-INJ-001",
             "TS-INJ-002",
+            "TS-INJ-003",
+            "TS-INJ-004",
             "TS-WEB-001",
             "TS-WEB-002",
             "TS-WEB-003",
             "TS-WEB-004",
             "TS-WEB-005",
+            "TS-WEB-006",
+            "TS-WEB-007",
+            "TS-WEB-008",
+            "TS-WEB-009",
+            "TS-API-001",
+            "TS-API-002",
+            "TS-API-003",
             "TS-LOG-001",
             "TS-CRYPTO-001",
             "TS-CRYPTO-002",
@@ -215,6 +225,168 @@ class MatchaScanTests(unittest.TestCase):
         findings = engine.scan_files(files)
         cors_finding = next(finding for finding in findings if finding.rule_id == "TS-WEB-003")
         self.assertEqual(cors_finding.severity, "low")
+
+    def test_open_redirect_rule_detects_user_controlled_redirect(self) -> None:
+        engine = RuleEngine(EngineConfig(rules_directories=[self.rules_dir], minimum_severity="low"))
+        findings = engine.scan_source(
+            file_path=Path("redirect.controller.ts"),
+            source=(
+                'import { Controller, Get, Query, Res } from "@nestjs/common";\n'
+                '@Controller("auth")\n'
+                "export class AuthController {\n"
+                "  @Get('redirect')\n"
+                "  go(@Query('next') next: string, @Res() res: any) {\n"
+                "    return res.redirect(next);\n"
+                "  }\n"
+                "}\n"
+            ),
+            language="typescript",
+        )
+        self.assertTrue(any(finding.rule_id == "TS-WEB-006" for finding in findings))
+
+    def test_mass_assignment_rule_detects_raw_body_to_save(self) -> None:
+        engine = RuleEngine(EngineConfig(rules_directories=[self.rules_dir], minimum_severity="low"))
+        findings = engine.scan_source(
+            file_path=Path("user.controller.ts"),
+            source=(
+                'import { Body, Controller, Post } from "@nestjs/common";\n'
+                '@Controller("users")\n'
+                "export class UserController {\n"
+                "  constructor(private readonly repo: any) {}\n"
+                "  @Post()\n"
+                "  create(@Body() body: any) {\n"
+                "    return this.repo.save(body);\n"
+                "  }\n"
+                "}\n"
+            ),
+            language="typescript",
+        )
+        self.assertTrue(any(finding.rule_id == "TS-API-001" for finding in findings))
+
+    def test_swagger_rule_detects_unconditional_setup(self) -> None:
+        engine = RuleEngine(EngineConfig(rules_directories=[self.rules_dir], minimum_severity="low"))
+        findings = engine.scan_source(
+            file_path=Path("main.ts"),
+            source=(
+                'import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";\n'
+                "const document = SwaggerModule.createDocument(app, new DocumentBuilder().build());\n"
+                "SwaggerModule.setup('docs', app, document);\n"
+            ),
+            language="typescript",
+        )
+        self.assertTrue(any(finding.rule_id == "TS-API-002" for finding in findings))
+
+    def test_swagger_rule_skips_dev_only_setup(self) -> None:
+        engine = RuleEngine(EngineConfig(rules_directories=[self.rules_dir], minimum_severity="low"))
+        findings = engine.scan_source(
+            file_path=Path("main.ts"),
+            source=(
+                'import { SwaggerModule } from "@nestjs/swagger";\n'
+                'if (process.env.NODE_ENV !== "production") {\n'
+                "  SwaggerModule.setup('docs', app, document);\n"
+                "}\n"
+            ),
+            language="typescript",
+        )
+        self.assertFalse(any(finding.rule_id == "TS-API-002" for finding in findings))
+
+    def test_jwt_expiry_missing_rule_detects_jwt_module_without_expiry(self) -> None:
+        engine = RuleEngine(EngineConfig(rules_directories=[self.rules_dir], minimum_severity="low"))
+        findings = engine.scan_source(
+            file_path=Path("auth.module.ts"),
+            source='JwtModule.register({ secret: process.env.JWT_SECRET_KEY });',
+            language="typescript",
+        )
+        self.assertTrue(any(finding.rule_id == "TS-AUTH-004" for finding in findings))
+
+    def test_insecure_cookie_rule_detects_secure_false(self) -> None:
+        engine = RuleEngine(EngineConfig(rules_directories=[self.rules_dir], minimum_severity="low"))
+        findings = engine.scan_source(
+            file_path=Path("auth.controller.ts"),
+            source='res.cookie("token", token, { httpOnly: true, secure: false });',
+            language="typescript",
+        )
+        self.assertTrue(any(finding.rule_id == "TS-WEB-007" for finding in findings))
+
+    def test_nosql_injection_rule_detects_raw_query_object(self) -> None:
+        engine = RuleEngine(EngineConfig(rules_directories=[self.rules_dir], minimum_severity="low"))
+        findings = engine.scan_source(
+            file_path=Path("user.controller.ts"),
+            source=(
+                'import { Controller, Get, Query } from "@nestjs/common";\n'
+                '@Controller("users")\n'
+                "export class UserController {\n"
+                "  constructor(private readonly model: any) {}\n"
+                "  @Get()\n"
+                "  search(@Query() filter: any) {\n"
+                "    return this.model.find(filter);\n"
+                "  }\n"
+                "}\n"
+            ),
+            language="typescript",
+        )
+        self.assertTrue(any(finding.rule_id == "TS-INJ-003" for finding in findings))
+
+    def test_command_injection_rule_detects_exec_with_user_command(self) -> None:
+        engine = RuleEngine(EngineConfig(rules_directories=[self.rules_dir], minimum_severity="low"))
+        findings = engine.scan_source(
+            file_path=Path("job.controller.ts"),
+            source=(
+                'import { Body, Controller, Post } from "@nestjs/common";\n'
+                'import { exec } from "child_process";\n'
+                '@Controller("jobs")\n'
+                "export class JobController {\n"
+                "  @Post()\n"
+                "  run(@Body('cmd') cmd: string) {\n"
+                "    return exec(cmd);\n"
+                "  }\n"
+                "}\n"
+            ),
+            language="typescript",
+        )
+        self.assertTrue(any(finding.rule_id == "TS-INJ-004" for finding in findings))
+
+    def test_security_headers_rule_detects_missing_helmet(self) -> None:
+        engine = RuleEngine(EngineConfig(rules_directories=[self.rules_dir], minimum_severity="low"))
+        findings = engine.scan_source(
+            file_path=Path("main.ts"),
+            source=(
+                'import { NestFactory } from "@nestjs/core";\n'
+                "async function bootstrap() {\n"
+                "  const app = await NestFactory.create(AppModule);\n"
+                "  await app.listen(3000);\n"
+                "}\n"
+            ),
+            language="typescript",
+        )
+        self.assertTrue(any(finding.rule_id == "TS-WEB-008" for finding in findings))
+
+    def test_regex_dos_rule_detects_nested_quantifier_pattern(self) -> None:
+        engine = RuleEngine(EngineConfig(rules_directories=[self.rules_dir], minimum_severity="low"))
+        findings = engine.scan_source(
+            file_path=Path("validator.ts"),
+            source='const dangerous = /(a+)+$/;\n',
+            language="typescript",
+        )
+        self.assertTrue(any(finding.rule_id == "TS-WEB-009" for finding in findings))
+
+    def test_rate_limiting_rule_detects_auth_route_without_throttle(self) -> None:
+        engine = RuleEngine(EngineConfig(rules_directories=[self.rules_dir], minimum_severity="low"))
+        findings = engine.scan_source(
+            file_path=Path("auth.controller.ts"),
+            source=(
+                'import { Controller, Post, Body } from "@nestjs/common";\n'
+                '@Controller("auth")\n'
+                "export class AuthController {\n"
+                "  @Post('login')\n"
+                "  login(@Body() body: any) {\n"
+                "    return body;\n"
+                "  }\n"
+                "}\n"
+            ),
+            language="typescript",
+        )
+        self.assertTrue(any(finding.rule_id == "TS-API-003" for finding in findings))
 
 
 if __name__ == "__main__":

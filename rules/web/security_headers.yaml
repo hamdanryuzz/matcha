@@ -1,0 +1,15 @@
+id: TS-WEB-008
+name: Missing Security Headers Middleware
+description: NestJS bootstrap code without Helmet or equivalent security headers can leave common browser protections disabled.
+severity: medium
+confidence: medium
+cwe: CWE-693
+owasp:
+  - A05:2021-Security Misconfiguration
+languages:
+  - javascript
+  - typescript
+logic: any
+patterns:
+  - type: semantic
+    value: security_headers

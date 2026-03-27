@@ -63,9 +63,6 @@ def _sanitize_ignore_patterns(patterns: list[str]) -> list[str]:
         pattern = raw_pattern.strip()
         if not pattern or pattern.startswith("#"):
             continue
-        # Some repositories contain a lone "/" entry, which would make
-        # pathspec treat the project root itself as ignored and effectively
-        # hide the whole tree from the scanner.
         if pattern == "/":
             continue
         sanitized.append(pattern)

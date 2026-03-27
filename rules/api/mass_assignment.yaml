@@ -1,0 +1,16 @@
+id: TS-API-001
+name: Mass Assignment from Raw Request Body
+description: Passing raw request bodies directly into persistence helpers can allow attackers to set unintended model fields.
+severity: high
+confidence: medium
+cwe: CWE-915
+owasp:
+  - A01:2021-Broken Access Control
+  - A08:2021-Software and Data Integrity Failures
+languages:
+  - javascript
+  - typescript
+logic: any
+patterns:
+  - type: semantic
+    value: mass_assignment

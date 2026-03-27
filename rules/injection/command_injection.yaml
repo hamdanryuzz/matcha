@@ -1,0 +1,15 @@
+id: TS-INJ-004
+name: Command Injection via Child Process
+description: Executing user-controlled commands through child process APIs can enable arbitrary command execution on the host.
+severity: critical
+confidence: high
+cwe: CWE-78
+owasp:
+  - A03:2021-Injection
+languages:
+  - javascript
+  - typescript
+logic: any
+patterns:
+  - type: semantic
+    value: command_injection

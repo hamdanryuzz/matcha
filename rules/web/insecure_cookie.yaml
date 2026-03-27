@@ -1,0 +1,15 @@
+id: TS-WEB-007
+name: Insecure Cookie Options
+description: Explicitly disabling secure or httpOnly cookie protections can expose session or auth cookies to theft and tampering.
+severity: high
+confidence: high
+cwe: CWE-614
+owasp:
+  - A05:2021-Security Misconfiguration
+languages:
+  - javascript
+  - typescript
+logic: any
+patterns:
+  - type: semantic
+    value: insecure_cookie

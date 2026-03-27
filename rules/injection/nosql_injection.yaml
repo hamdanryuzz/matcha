@@ -1,0 +1,15 @@
+id: TS-INJ-003
+name: NoSQL Injection via Raw Query Object
+description: Passing user-controlled objects directly into NoSQL query helpers can let attackers influence query operators and filters.
+severity: high
+confidence: medium
+cwe: CWE-943
+owasp:
+  - A03:2021-Injection
+languages:
+  - javascript
+  - typescript
+logic: any
+patterns:
+  - type: semantic
+    value: nosql_injection

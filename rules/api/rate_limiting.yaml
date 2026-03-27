@@ -1,0 +1,15 @@
+id: TS-API-003
+name: Missing Rate Limiting on Auth Route
+description: Authentication endpoints without throttling or rate limiting are more exposed to brute force and credential stuffing attacks.
+severity: medium
+confidence: medium
+cwe: CWE-770
+owasp:
+  - A07:2021-Identification and Authentication Failures
+languages:
+  - javascript
+  - typescript
+logic: any
+patterns:
+  - type: semantic
+    value: rate_limiting
