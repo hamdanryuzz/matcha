@@ -19,7 +19,7 @@
 - regex rules
 - AST-aware rules via tree-sitter
 - semantic detectors for framework-specific patterns
-- optional LLM-based false-positive filtering via Groq
+
 
 It is designed for real-world NestJS and Next.js codebases, while staying easy to extend for open source use.
 
@@ -113,7 +113,6 @@ Options:
   --severity [low|medium|high|critical]
   --format [console|json|sarif]
   --output <file>
-  --enable-llm
   --language [javascript|typescript]
   --rules-dir <path>
 ```
@@ -139,7 +138,6 @@ Summary: 2 findings (2 high) in 0.73s
 ```yaml
 severity: medium
 format: console
-enable_llm: false
 language: typescript
 rules_dir: ./custom-rules
 exclude:
@@ -185,16 +183,6 @@ Current rule families:
 - `rules/crypto`
 - `rules/logging`
 
-## LLM Filtering
-
-When `--enable-llm` is enabled, `matcha` sends each finding's rule description plus a short code snippet to Groq model `llama-3.3-70b-versatile` and removes findings classified as false positives.
-
-Set the API key before use:
-
-```bash
-export GROQ_API_KEY=your_key_here
-```
-
 ## Exit Codes
 
 - `0` no findings
@@ -218,7 +206,6 @@ matcha/
 |   |-- detector.py
 |   |-- engine.py
 |   |-- formatter.py
-|   |-- llm.py
 |   |-- parser.py
 |   `-- walker.py
 |-- rules/

@@ -16,8 +16,13 @@ dependencies = [
   "tree-sitter-typescript",
   "PyYAML",
   "rich",
-  "groq",
   "pathspec",
+]
+
+[project.optional-dependencies]
+api = [
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.29",
 ]
 
 [project.scripts]

@@ -12,7 +12,6 @@ from matcha import __version__
 from matcha.detector import normalize_language
 from matcha.engine import EngineConfig, MatchaError, RuleEngine
 from matcha.formatter import format_console, format_json, format_sarif
-from matcha.llm import GroqFindingFilter
 from matcha.walker import WalkerConfig, walk_source_files
 
 
@@ -21,7 +20,6 @@ class ScanSettings:
     severity: str
     output_format: str
     output_file: Path | None
-    enable_llm: bool
     language: str | None
     rules_dir: Path | None
     exclude: list[str]
@@ -57,12 +55,6 @@ def main() -> None:
     help="Write output to file.",
 )
 @click.option(
-    "--enable-llm",
-    is_flag=True,
-    default=None,
-    help="Enable Groq LLM filtering for false positives.",
-)
-@click.option(
     "--language",
     "language",
     type=click.Choice(["javascript", "typescript"], case_sensitive=False),
@@ -81,7 +73,6 @@ def scan(
     severity: str | None,
     output_format: str | None,
     output_file: Path | None,
-    enable_llm: bool | None,
     language: str | None,
     rules_dir: Path | None,
 ) -> None:
@@ -93,7 +84,6 @@ def scan(
             severity=severity,
             output_format=output_format,
             output_file=output_file,
-            enable_llm=enable_llm,
             language=language,
             rules_dir=rules_dir,
         )
@@ -113,8 +103,6 @@ def scan(
             )
         )
         findings = engine.scan_files(files, forced_language=settings.language)
-        if settings.enable_llm and findings:
-            findings = GroqFindingFilter().filter_findings(findings)
         elapsed = time.perf_counter() - started_at
         rendered = render_output(settings.output_format, findings, root, elapsed)
         if settings.output_file is not None:
@@ -133,12 +121,26 @@ def scan(
         raise click.exceptions.Exit(2) from exc
 
 
+@main.command()
+@click.option("--host", default="127.0.0.1", show_default=True, help="Host to bind to.")
+@click.option("--port", default=8000, show_default=True, type=int, help="Port to listen on.")
+@click.option("--reload", is_flag=True, default=False, help="Enable auto-reload (development only).")
+def serve(host: str, port: int, reload: bool) -> None:
+    """Start the matcha HTTP API server."""
+    try:
+        import uvicorn
+    except ImportError:
+        click.echo("uvicorn is required to run the API server. Install it with: pip install 'matcha-sast[api]'", err=True)
+        raise click.exceptions.Exit(2)
+    click.echo(f"Starting matcha API on http://{host}:{port}")
+    uvicorn.run("matcha.api:app", host=host, port=port, reload=reload)
+
+
 def resolve_settings(
     target_path: Path,
     severity: str | None,
     output_format: str | None,
     output_file: Path | None,
-    enable_llm: bool | None,
     language: str | None,
     rules_dir: Path | None,
 ) -> ScanSettings:
@@ -155,7 +157,6 @@ def resolve_settings(
         severity=(severity or configured_severity).lower(),
         output_format=(output_format or configured_format).lower(),
         output_file=output_file or _optional_path(configured_output, target_path),
-        enable_llm=bool(enable_llm if enable_llm is not None else config.get("enable_llm", False)),
         language=resolved_language,
         rules_dir=rules_dir or _optional_path(config.get("rules_dir"), target_path),
         exclude=[str(item) for item in config.get("exclude", [])],
