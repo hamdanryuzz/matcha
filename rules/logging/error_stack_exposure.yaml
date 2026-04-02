@@ -1,0 +1,19 @@
+id: TS-LOG-002
+name: Error Stack Trace Exposed in Response
+description: Sending error.stack or error.message directly to clients reveals internal file paths, library versions, and code structure that aid attackers.
+severity: medium
+confidence: high
+cwe: CWE-209
+owasp:
+  - A05:2021-Security Misconfiguration
+languages:
+  - javascript
+  - typescript
+logic: any
+patterns:
+  - type: regex
+    value: "(?:res\\.json|res\\.send|res\\.status\\([^)]+\\)\\.json)\\s*\\([^)\\n]*(?:err|error)\\.(?:stack|message)"
+    flags: i
+  - type: regex
+    value: "(?:message|stack)\\s*:\\s*(?:err|error)\\.(?:stack|message)"
+    flags: i

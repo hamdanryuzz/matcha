@@ -1,0 +1,19 @@
+id: TS-CRYPTO-004
+name: Zero-Filled or Static Initialization Vector
+description: Creating an IV with Buffer.alloc() without randomBytes produces a predictable initialization vector, undermining cipher security.
+severity: high
+confidence: medium
+cwe: CWE-329
+owasp:
+  - A02:2021-Cryptographic Failures
+languages:
+  - javascript
+  - typescript
+logic: any
+patterns:
+  - type: regex
+    value: "(?:const|let|var)\\s+(?:iv|nonce|initVector|initialization_vector)[\\s\\S]{0,30}=\\s*Buffer\\.alloc\\s*\\("
+    flags: i
+  - type: regex
+    value: "createCipheriv\\s*\\([^,]+,\\s*[^,]+,\\s*Buffer\\.alloc\\s*\\("
+    flags: i

@@ -1,0 +1,22 @@
+id: TS-INJ-006
+name: Prototype Pollution via Object Merge
+description: Merging user-controlled objects with Object.assign or lodash merge without key filtering can overwrite Object.prototype properties, affecting all objects.
+severity: high
+confidence: medium
+cwe: CWE-1321
+owasp:
+  - A03:2021-Injection
+languages:
+  - javascript
+  - typescript
+logic: any
+patterns:
+  - type: regex
+    value: "Object\\.assign\\s*\\(\\s*(?:this|target|obj|config|options|settings|defaults)[^,)\\n]*,\\s*(?:req|request)\\.(?:body|query|params)"
+    flags: i
+  - type: regex
+    value: "_\\.merge\\s*\\([^)\\n]*(?:req|request)\\.(?:body|query|params)"
+    flags: i
+  - type: regex
+    value: "(?:merge|deepMerge|mergeDeep)\\s*\\([^)\\n]*(?:req|request)\\.(?:body|query|params)"
+    flags: i

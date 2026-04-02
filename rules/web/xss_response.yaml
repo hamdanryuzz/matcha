@@ -1,0 +1,19 @@
+id: TS-WEB-010
+name: Reflected XSS via Template Literal in Response
+description: Interpolating request values directly into HTML sent via res.send enables reflected cross-site scripting. Sanitize output or use a templating engine with auto-escaping.
+severity: high
+confidence: medium
+cwe: CWE-79
+owasp:
+  - A03:2021-Injection
+languages:
+  - javascript
+  - typescript
+logic: any
+patterns:
+  - type: regex
+    value: "res\\.(?:send|write)\\s*\\(`[^`]*\\$\\{[^}]*(?:req|request)\\.(?:body|query|params)"
+    flags: i
+  - type: regex
+    value: "res\\.(?:send|write)\\s*\\([^)\\n]*(?:req|request)\\.(?:body|query|params)\\.[A-Za-z0-9_]+[^)\\n]*\\)"
+    flags: i

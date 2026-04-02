@@ -1,0 +1,19 @@
+id: TS-AUTH-005
+name: JWT Accepts 'none' Algorithm
+description: Allowing the 'none' algorithm in JWT verification disables signature validation, allowing attackers to forge arbitrary tokens.
+severity: critical
+confidence: high
+cwe: CWE-347
+owasp:
+  - A07:2021-Identification and Authentication Failures
+languages:
+  - javascript
+  - typescript
+logic: any
+patterns:
+  - type: regex
+    value: "(?:jwt|jsonwebtoken)\\.verify\\s*\\([\\s\\S]{0,300}?algorithms\\s*:\\s*\\[[^\\]]*['\"]none['\"]"
+    flags: is
+  - type: regex
+    value: "(?:jwt|jsonwebtoken)\\.(?:sign|verify)\\s*\\([\\s\\S]{0,200}?algorithm\\s*:\\s*['\"]none['\"]"
+    flags: is

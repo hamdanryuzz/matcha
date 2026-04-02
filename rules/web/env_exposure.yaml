@@ -1,0 +1,19 @@
+id: TS-WEB-011
+name: Environment Variables Exposed in API Response
+description: Including process.env or its properties in HTTP responses can leak secrets, database credentials, and infrastructure configuration to end users.
+severity: high
+confidence: medium
+cwe: CWE-200
+owasp:
+  - A05:2021-Security Misconfiguration
+languages:
+  - javascript
+  - typescript
+logic: any
+patterns:
+  - type: regex
+    value: "(?:res\\.json|res\\.send|res\\.status\\([^)]+\\)\\.json)\\s*\\([^)\\n]*process\\.env"
+    flags: i
+  - type: regex
+    value: "return\\s+\\{[^}\\n]*process\\.env\\b"
+    flags: i

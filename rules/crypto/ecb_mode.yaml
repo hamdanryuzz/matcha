@@ -1,0 +1,16 @@
+id: TS-CRYPTO-003
+name: Insecure Block Cipher Mode (ECB)
+description: ECB mode encrypts identical plaintext blocks into identical ciphertext blocks, leaking data patterns. Use GCM, CBC, or CTR mode instead.
+severity: high
+confidence: high
+cwe: CWE-327
+owasp:
+  - A02:2021-Cryptographic Failures
+languages:
+  - javascript
+  - typescript
+logic: any
+patterns:
+  - type: regex
+    value: "createCipher(?:iv)?\\s*\\(\\s*['\"](?:aes|des|3des|blowfish)-?(?:128|192|256)?-?ecb['\"]"
+    flags: i

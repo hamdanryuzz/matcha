@@ -1,0 +1,19 @@
+id: TS-INJ-005
+name: Path Traversal via User-Controlled Input
+description: Passing request parameters directly into path.join or path.resolve allows attackers to escape the intended directory with sequences like '../'.
+severity: high
+confidence: medium
+cwe: CWE-22
+owasp:
+  - A01:2021-Broken Access Control
+languages:
+  - javascript
+  - typescript
+logic: any
+patterns:
+  - type: regex
+    value: "path\\.(?:join|resolve)\\s*\\([^)\\n]*(?:req|request)\\.(?:body|query|params)\\.[A-Za-z0-9_]+"
+    flags: i
+  - type: regex
+    value: "(?:fs\\.(?:readFile|writeFile|createReadStream|createWriteStream|readFileSync)|readFile|writeFile)\\s*\\([^)\\n]*(?:req|request)\\.(?:body|query|params)\\."
+    flags: i

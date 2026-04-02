@@ -1,0 +1,19 @@
+id: TS-INJ-007
+name: Insecure Deserialization of User Input
+description: Deserializing user-controlled data with node-serialize or similar libraries can lead to remote code execution via crafted payloads.
+severity: critical
+confidence: high
+cwe: CWE-502
+owasp:
+  - A08:2021-Software and Data Integrity Failures
+languages:
+  - javascript
+  - typescript
+logic: any
+patterns:
+  - type: regex
+    value: "unserialize\\s*\\(\\s*(?:req|request)\\.(?:body|query|params)"
+    flags: i
+  - type: regex
+    value: "(?:serialize|unserialize)\\s*=\\s*require\\s*\\(\\s*['\"]node-serialize['\"]"
+    flags: i
